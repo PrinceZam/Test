@@ -1,0 +1,140 @@
+warn("STARTING THE TEST NOW!!!")
+local UNC_Tester = {Passed=0,Failed=0,Total=0,Emoji={Pass="✅",Fail="❌",Cry="😢"}}
+
+for _=1,10 do print() end
+
+local function SafeTest(fn_name,test)
+	UNC_Tester.Total+=1
+	local fn=type(_G[fn_name])=="function"and _G[fn_name]or getgenv()[fn_name]
+	if not fn then 
+		UNC_Tester.Failed+=1
+		warn(UNC_Tester.Emoji.Fail.." "..fn_name..": Failed")
+		return 
+	end
+
+	local success,err=pcall(test)
+	if success then
+		UNC_Tester.Passed+=1
+		print(UNC_Tester.Emoji.Pass.." "..fn_name..": Passed")
+	else
+		UNC_Tester.Failed+=1
+		warn(UNC_Tester.Emoji.Fail.." "..fn_name..": Failed")
+	end
+end
+
+local TestEnv={
+	test_script=Instance.new("Script"),
+	test_fn=function() 
+		local up1, up2 = "test", 123
+		return function() return up1, up2 end 
+	end,
+	test_part=Instance.new("Part")
+}
+
+TestEnv.test_script.Source = "print('Test')"
+
+local Tests={
+	{"getrawmetatable",function()
+		assert(getrawmetatable(game), "Metatable access failed")
+	end},
+	{"hookfunction",function()
+		local original = game.IsA
+		local hooked = hookfunction(game.IsA, function() return true end)
+		assert(hooked ~= original, "Hook failed")
+		hookfunction(game.IsA, original)
+	end},
+	{"getcallingscript",function()
+		local function test() return getcallingscript() end
+		assert(test():IsA("LuaSourceContainer"), "Invalid script")
+	end},
+	{"getrenv",function()assert(getrenv()~=_G,"ENV mismatch")end},
+	{"getreg",function()assert(type(getreg())=="table")end},
+	{"getgc",function()assert(#getgc()>0,"GC empty")end},
+	{"getinstances",function()assert(#getinstances()>0,"No instances")end},
+	{"getnilinstances",function()assert(#getnilinstances()>=0,"Nil error")end},
+	{"getscripts",function()assert(#getscripts()>0,"No scripts")end},
+	{"getloadedmodules",function()assert(#getloadedmodules()>=0)end},
+	{"getconnections",function()
+		getconnections(TestEnv.test_part.Changed)
+	end},
+	{"firesignal",function()
+		firesignal(TestEnv.test_part.Changed)
+	end},
+	{"checkcaller",function()assert(type(checkcaller())=="boolean")end},
+	{"setupvalue",function()
+		local closure = TestEnv.test_fn()
+		setupvalue(closure, 1, "modified")
+		assert(debug.getupvalue(closure,1)=="modified")
+	end},
+	{"getupvalues",function()
+		assert(#getupvalues(TestEnv.test_fn())>=2)
+	end},
+	{"setthreadidentity",function()
+		local o=getthreadidentity()
+		setthreadidentity(7)
+		setthreadidentity(o)
+	end},
+	{"getthreadidentity",function()assert(getthreadidentity()>0)end},
+	{"decompile",function()
+		assert(decompile(TestEnv.test_script):find("print"))
+	end},
+	{"getscriptbytecode",function()
+		assert(#getscriptbytecode(TestEnv.test_script)>0)
+	end},
+	{"getprotos",function()
+		assert(#getprotos(TestEnv.test_fn())>0)
+	end},
+	{"getconstant",function()
+		assert(getconstant(TestEnv.test_fn,1)=="test")
+	end},
+	{"setconstant",function()
+		setconstant(TestEnv.test_fn,1,"changed")
+		assert(getconstant(TestEnv.test_fn,1)=="changed")
+	end},
+	{"traceback",function()assert(traceback():find("stack"))end},
+	{"gettenv",function()assert(type(gettenv(coroutine.running())))end},
+	{"islclosure",function()assert(islclosure(TestEnv.test_fn))end},
+	{"isourclosure",function()assert(not isourclosure(TestEnv.test_fn))end},
+	{"queues_on_teleport",function()queues_on_teleport("print()")end},
+	{"clonefunction",function()clonefunction(TestEnv.test_fn)end},
+	{"replaceclosure",function()
+		replaceclosure(TestEnv.test_fn, function() return "replaced" end)
+	end},
+	{"getnamecallmethod",function()
+		TestEnv.test_part:GetPropertyChangedSignal("Name"):Wait()
+		getnamecallmethod()
+	end},
+	{"saveinstance",function()saveinstance()end},
+	{"getscripthash",function()assert(getscripthash(TestEnv.test_script))end},
+	{"getscriptsource",function()
+		assert(getscriptsource(TestEnv.test_script)=="print('Test')")
+	end},
+	{"getmenv",function()assert(getmenv(TestEnv.test_fn))end},
+	{"getstate",function()assert(getstate(TestEnv.test_fn))end},
+	{"getstateenv",function()assert(getstateenv(TestEnv.test_fn))end},
+	{"getcontext",function()assert(type(getcontext())=="number")end},
+	{"setcontext",function()
+		local o=getcontext()
+		setcontext(7)
+		setcontext(o)
+	end},
+	{"checkclosure",function()checkclosure(TestEnv.test_fn)end},
+	{"getpointer",function()assert(type(getpointer(TestEnv.test_fn)))end},
+	{"restorefunction",function()restorefunction(print)end},
+	{"isreadonly",function()isreadonly(TestEnv.test_fn)end},
+	{"setreadonly",function()
+		setreadonly(TestEnv.test_fn,false)
+	end},
+	{"getscriptfromstate",function()getscriptfromstate()end},
+	{"getcallstack",function()assert(#getcallstack()>0)end},
+	{"getstack",function()assert(type(getstack(1))=="table")end},
+	{"getinfo",function()assert(type(getinfo(1))=="table")end},
+}
+
+for _,test in ipairs(Tests)do SafeTest(test[1],test[2])end
+
+print("\n"..UNC_Tester.Emoji.Pass.." "..math.floor((UNC_Tester.Passed/UNC_Tester.Total)*100).."% ("..UNC_Tester.Passed.."/"..UNC_Tester.Total..")")
+warn(UNC_Tester.Emoji.Fail.." "..UNC_Tester.Failed.." Failed "..UNC_Tester.Emoji.Cry)
+
+TestEnv.test_script:Destroy()
+TestEnv.test_part:Destroy()
